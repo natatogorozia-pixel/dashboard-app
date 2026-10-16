@@ -2,14 +2,52 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import './App.css';
 
-// API/სერვისის სიმულაცია
+// 1. React Error Boundary (UI-ს დაცვა თეთრი ეკრანისგან)
+class ErrorBoundary extends React.Component {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary დაიჭირა შეცდომა:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '50px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+          <h2>⚠️ სისტემური შეცდომა (Runtime Error)</h2>
+          <p>სამწუხაროდ, აპლიკაციის ამ ნაწილში მოხდა შეფერხება.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{ padding: '10px 20px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            სცადეთ ხელახლა (Retry)
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// API/სერვისის სიმულაცია DevTools Debugging მეთოდებით (`console.time` და `console.table`)
 const fetchDashboardStats = async () => {
-  return [
+  console.time('StatsLoadTime'); // ზომავს ჩატვირთვის სისწრაფეს
+  
+  const data = [
     { id: '1', title: 'სულ შეკვეთები', value: '1,284', icon: '📦', change: '+12%' },
     { id: '2', title: 'აქტიური ტრანსპორტი', value: '42', icon: '🚚', change: '+5%' },
     { id: '3', title: 'შემოსავალი', value: '₾45,200', icon: '💰', change: '+18%' },
     { id: '4', title: 'დაყოვნებული', value: '3', icon: '⚠️', change: '-2%' },
   ];
+
+  console.table(data); // აფისებს ცხრილის სახით კონსოლში
+  console.timeEnd('StatsLoadTime'); // აჩვენებს ჩატვირთვის დროს კონსოლში
+  
+  return data;
 };
 
 // Custom Hook: Debounce
@@ -56,7 +94,7 @@ function Modal({ isOpen, onClose, title, children }) {
   );
 }
 
-// ფორმის კომპონენტი ვალიდაციით
+// ფორმის კომპონენტი ვალიდაციით და Double-Click ბლოკირებით (Loading state)
 function ItemForm({ initialData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -64,6 +102,7 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
     change: ''
   });
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false); // Double-click-ის პრევენცია
 
   useEffect(() => {
     if (initialData) {
@@ -87,10 +126,15 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validate()) {
-      onSubmit(formData);
+      setIsSubmitting(true); // ბლოკავს ღილაკს
+      try {
+        await onSubmit(formData);
+      } finally {
+        setIsSubmitting(false); // ხსნის ბლოკს
+      }
     }
   };
 
@@ -129,31 +173,46 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
       </div>
 
       <div className="form-actions">
-        <button type="submit" className="save-btn">შენახვა</button>
+        <button type="submit" disabled={isSubmitting} className="save-btn">
+          {isSubmitting ? 'იგზავნება...' : 'შენახვა'}
+        </button>
         <button type="button" onClick={onCancel} className="cancel-btn">გაუქმება</button>
       </div>
     </form>
   );
 }
 
-function App() {
+function DashboardApp() {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isOfflineMode, setIsOfflineMode] = useState(false); // ოფლაინ / API Fallback
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 400);
 
-  // მობილური მენიუს (ჰამბურგერის) სტეიტი
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // მოდალის და CRUD სტრუქტურის სტეიტები
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
   useEffect(() => {
-    fetchDashboardStats().then((data) => {
-      setStats(data);
-      setLoading(false);
-    });
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchDashboardStats();
+        setStats(data);
+        setIsOfflineMode(false);
+      } catch (error) {
+        // API/სერვერის გათიშვისას გადართვა ლოკალურ Fallback რეჟიმზე
+        setIsOfflineMode(true);
+        setStats([
+          { id: '1', title: 'სულ შეკვეთები (ქეში)', value: '1,284', icon: '📦', change: '+12%' },
+          { id: '2', title: 'აქტიური ტრანსპორტი (ქეში)', value: '42', icon: '🚚', change: '+5%' }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleOpenAdd = () => {
@@ -190,7 +249,13 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* რესპონსიული ჰედერი ჰამბურგერ მენიუთი */}
+      {/* ოფლაინ / Fallback ინდიკატორი */}
+      {isOfflineMode && (
+        <div style={{ background: '#fef08a', padding: '10px', borderRadius: '6px', marginBottom: '15px', fontWeight: 'bold', color: '#854d0e' }}>
+          ⚠️ ნაჩვენებია ლოკალური დემო მონაცემები (სერვერთან კავშირი შეწყვეტილია)
+        </div>
+      )}
+
       <header className="app-header">
         <h1>B2B ლოჯისტიკის დეშბორდი</h1>
         
@@ -219,7 +284,6 @@ function App() {
         </div>
       </header>
 
-      {/* ძებნა */}
       <input
         type="text"
         className="search-input"
@@ -257,7 +321,6 @@ function App() {
         </div>
       )}
 
-      {/* მოდალური ფანჯარა ფორმით */}
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
@@ -273,4 +336,11 @@ function App() {
   );
 }
 
-export default App;
+// საბოლოო ექსპორტი ErrorBoundary-ით შეფუთული
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <DashboardApp />
+    </ErrorBoundary>
+  );
+}
