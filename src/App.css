@@ -1,49 +1,241 @@
-/* GPU Acceleration & Hover Transitions */
-.stat-card {
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  will-change: transform;
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background-color: #f8fafc;
 }
 
-.stat-card:hover, .stat-card:focus-visible {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+.app-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* Accessibility Focus States */
-:focus-visible {
-  outline: 3px solid #0284c7 !important;
-  outline-offset: 2px !important;
-}
-
-/* Pulse Keyframes Indicator */
-.pulse-dot {
-  width: 10px;
-  height: 10px;
-  background-color: #ef4444;
-  border-radius: 50%;
+/* ჰედერი და ნავიგაცია */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
   position: relative;
-  display: inline-block;
 }
 
-.pulse-dot::after {
-  content: '';
-  position: absolute;
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #333;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.add-new-btn {
+  padding: 10px 18px;
+  background: #0284c7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.pulse-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulse-text {
+  font-size: 13px;
+  color: #ef4444;
+  font-weight: bold;
+}
+
+/* ძებნის ველი */
+.search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  margin-bottom: 20px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+/* ბადეები (Grids) რესპონსიული */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  padding: 20px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.edit-btn {
+  flex: 1;
+  padding: 8px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.delete-btn {
+  flex: 1;
+  padding: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* მოდალის სტილები */
+.modal-overlay {
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #ef4444;
-  border-radius: 50%;
-  animation: pulse-animation 1.5s infinite ease-in-out;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 15px;
+  box-sizing: border-box;
 }
 
-@keyframes pulse-animation {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
+.modal-content {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+}
+
+/* ფორმის სტილები */
+.form-group {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.form-group input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.save-btn {
+  background: #0284c7;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #333;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* მედია-ქუერი მობილური მოწყობილობებისთვის (Responsive Web Design) */
+@media (max-width: 768px) {
+  .hamburger-btn {
+    display: block !important;
   }
-  100% {
-    transform: scale(2.5);
-    opacity: 0;
+
+  .nav-links {
+    display: none !important;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    background: #f1f5f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+    box-sizing: border-box;
+  }
+
+  .nav-links.open {
+    display: flex !important;
+  }
+
+  .app-container {
+    padding: 16px;
   }
 }

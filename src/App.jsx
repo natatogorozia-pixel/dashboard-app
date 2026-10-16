@@ -27,7 +27,7 @@ const useDebounce = (value, delay = 400) => {
   return debouncedValue;
 };
 
-// 1. მოდალის კომპონენტი Portal-ით
+// მოდალის კომპონენტი Portal-ით
 function Modal({ isOpen, onClose, title, children }) {
   useEffect(() => {
     if (isOpen) {
@@ -43,11 +43,11 @@ function Modal({ isOpen, onClose, title, children }) {
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }} onClick={onClose}>
-      <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
           <h3 style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>&times;</button>
+          <button className="close-btn" onClick={onClose}>&times;</button>
         </div>
         <div>{children}</div>
       </div>
@@ -56,7 +56,7 @@ function Modal({ isOpen, onClose, title, children }) {
   );
 }
 
-// 2. ფორმის კომპონენტი ვალიდაციით
+// ფორმის კომპონენტი ვალიდაციით
 function ItemForm({ initialData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -96,44 +96,41 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column' }}>
-        <label style={{ fontWeight: 600, marginBottom: '6px', fontSize: '14px' }}>მონაცემის დასახელება:</label>
+      <div className="form-group">
+        <label>მონაცემის დასახელება:</label>
         <input 
           type="text" 
           value={formData.title} 
           onChange={(e) => setFormData({...formData, title: e.target.value})}
           placeholder="მაგ: ახალი საწყობი"
-          style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }}
         />
-        {errors.title && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.title}</span>}
+        {errors.title && <span className="error-text">{errors.title}</span>}
       </div>
 
-      <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column' }}>
-        <label style={{ fontWeight: 600, marginBottom: '6px', fontSize: '14px' }}>მნიშვნელობა:</label>
+      <div className="form-group">
+        <label>მნიშვნელობა:</label>
         <input 
           type="text" 
           value={formData.value} 
           onChange={(e) => setFormData({...formData, value: e.target.value})}
           placeholder="მაგ: 150"
-          style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }}
         />
-        {errors.value && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.value}</span>}
+        {errors.value && <span className="error-text">{errors.value}</span>}
       </div>
 
-      <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column' }}>
-        <label style={{ fontWeight: 600, marginBottom: '6px', fontSize: '14px' }}>ცვლილება (მაგ: +10%):</label>
+      <div className="form-group">
+        <label>ცვლილება (მაგ: +10%):</label>
         <input 
           type="text" 
           value={formData.change} 
           onChange={(e) => setFormData({...formData, change: e.target.value})}
           placeholder="მაგ: +8%"
-          style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }}
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-        <button type="submit" style={{ background: '#0284c7', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>შენახვა</button>
-        <button type="button" onClick={onCancel} style={{ background: '#e5e7eb', color: '#333', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer' }}>გაუქმება</button>
+      <div className="form-actions">
+        <button type="submit" className="save-btn">შენახვა</button>
+        <button type="button" onClick={onCancel} className="cancel-btn">გაუქმება</button>
       </div>
     </form>
   );
@@ -144,6 +141,9 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 400);
+
+  // მობილური მენიუს (ჰამბურგერის) სტეიტი
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // მოდალის და CRUD სტრუქტურის სტეიტები
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -156,19 +156,16 @@ function App() {
     });
   }, []);
 
-  // გახსნა Add New-სთვის
   const handleOpenAdd = () => {
     setEditingItem(null);
     setIsModalOpen(true);
   };
 
-  // გახსნა Edit-ისთვის
   const handleOpenEdit = (stat) => {
     setEditingItem(stat);
     setIsModalOpen(true);
   };
 
-  // დამატება ან რედაქტირება დინამიკურად
   const handleFormSubmit = (formData) => {
     if (editingItem) {
       setStats(stats.map(item => item.id === editingItem.id ? { ...item, ...formData } : item));
@@ -183,7 +180,6 @@ function App() {
     setIsModalOpen(false);
   };
 
-  // წაშლა
   const handleDelete = (id) => {
     setStats(stats.filter(item => item.id !== id));
   };
@@ -193,28 +189,37 @@ function App() {
   );
 
   return (
-    <div className="app-container" style={{ padding: '24px', fontFamily: 'sans-serif' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+    <div className="app-container">
+      {/* რესპონსიული ჰედერი ჰამბურგერ მენიუთი */}
+      <header className="app-header">
         <h1>B2B ლოჯისტიკის დეშბორდი</h1>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="hamburger-btn"
+          aria-label="მენიუ"
+        >
+          ☰
+        </button>
+
+        <div className={`nav-links ${isMobileMenuOpen ? 'open' : ''}`}>
           <button 
-            onClick={handleOpenAdd}
-            style={{ padding: '10px 18px', background: '#0284c7', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+            onClick={() => { handleOpenAdd(); setIsMobileMenuOpen(false); }}
+            className="add-new-btn"
           >
             + Add New
           </button>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="pulse-wrapper">
             <span className="pulse-dot"></span>
-            <span style={{ fontSize: '13px', color: '#ef4444', fontWeight: 'bold' }}>
+            <span className="pulse-text">
               დაყოვნებული ტვირთები (3)
             </span>
           </div>
         </div>
       </header>
 
-      {/* Debounced Search */}
+      {/* ძებნა */}
       <input
         type="text"
         className="search-input"
@@ -222,22 +227,14 @@ function App() {
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         aria-label="ძებნა"
-        style={{ width: '100%', maxWidth: '400px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '20px' }}
       />
 
       {loading ? (
         <p>იტვირთება...</p>
       ) : (
-        <div 
-          className="stats-grid" 
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}
-        >
+        <div className="stats-grid">
           {filteredStats.map((stat) => (
-            <div 
-              key={stat.id} 
-              className="stat-card" 
-              style={{ padding: '20px', borderRadius: '12px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
-            >
+            <div key={stat.id} className="stat-card">
               <div>
                 <div style={{ fontSize: '24px' }}>{stat.icon}</div>
                 <h3 style={{ margin: '10px 0 5px 0' }}>{stat.title}</h3>
@@ -247,17 +244,11 @@ function App() {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: '15px' }}>
-                <button 
-                  onClick={() => handleOpenEdit(stat)}
-                  style={{ flex: 1, padding: '8px', background: '#e0f2fe', color: '#0369a1', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
-                >
+              <div className="card-actions">
+                <button onClick={() => handleOpenEdit(stat)} className="edit-btn">
                   Edit
                 </button>
-                <button 
-                  onClick={() => handleDelete(stat.id)}
-                  style={{ flex: 1, padding: '8px', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
-                >
+                <button onClick={() => handleDelete(stat.id)} className="delete-btn">
                   Delete
                 </button>
               </div>
