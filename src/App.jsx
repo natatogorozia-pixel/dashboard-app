@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import { z } from 'zod';
 import './App.css';
+
+// Zod სქემა Fail-Fast ვალიდაციისთვის
+const itemSchema = z.object({
+  title: z.string().min(3, 'დასახელება უნდა იყოს მინიმუმ 3 სიმბოლო!'),
+  value: z.string().min(1, 'მნიშვნელობის ველი სავალდებულოა!'),
+  change: z.string().optional()
+});
 
 // 1. React Error Boundary (UI-ს დაცვა თეთრი ეკრანისგან)
 class ErrorBoundary extends React.Component {
@@ -35,6 +43,7 @@ class ErrorBoundary extends React.Component {
 
 // API/სერვისის სიმულაცია DevTools Debugging მეთოდებით (`console.time` და `console.table`)
 const fetchDashboardStats = async () => {
+  debugger;
   console.time('StatsLoadTime'); // ზომავს ჩატვირთვის სისწრაფეს
   
   const data = [
@@ -44,7 +53,7 @@ const fetchDashboardStats = async () => {
     { id: '4', title: 'დაყოვნებული', value: '3', icon: '⚠️', change: '-2%' },
   ];
 
-  console.table(data); // აფისებს ცხრილის სახით კონსოლში
+  console.table(data); // აფიქსირებს ცხრილის სახით კონსოლში
   console.timeEnd('StatsLoadTime'); // აჩვენებს ჩატვირთვის დროს კონსოლში
   
   return data;
@@ -94,7 +103,7 @@ function Modal({ isOpen, onClose, title, children }) {
   );
 }
 
-// ფორმის კომპონენტი ვალიდაციით და Double-Click ბლოკირებით (Loading state)
+// ფორმის კომპონენტი Zod ვალიდაციით და Double-Click ბლოკირებით
 function ItemForm({ initialData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -110,20 +119,20 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
     }
   }, [initialData]);
 
+  // Zod-ის ვალიდაციის ლოგიკა
+ // Zod-ის ვალიდაციის ლოგიკა
   const validate = () => {
-    let newErrors = {};
-    if (!formData.title.trim()) {
-      newErrors.title = 'დასახელების ველი სავალდებულოა!';
-    } else if (formData.title.length < 3) {
-      newErrors.title = 'დასახელება უნდა იყოს მინიმუმ 3 სიმბოლო!';
+    const result = itemSchema.safeParse(formData);
+    if (!result.success) {
+      const formattedErrors = {};
+      result.error.issues.forEach(issue => {
+        formattedErrors[issue.path[0]] = issue.message;
+      });
+      setErrors(formattedErrors);
+      return false;
     }
-
-    if (!formData.value.toString().trim()) {
-      newErrors.value = 'მნიშვნელობის ველი სავალდებულოა!';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors({});
+    return true;
   };
 
   const handleSubmit = async (e) => {
