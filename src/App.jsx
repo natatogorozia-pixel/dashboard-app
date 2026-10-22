@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { z } from 'zod';
 import './App.css';
 
-// Zod სქემა Fail-Fast ვალიდაციისთვის
-const itemSchema = z.object({
-  title: z.string().min(3, 'დასახელება უნდა იყოს მინიმუმ 3 სიმბოლო!'),
-  value: z.string().min(1, 'მნიშვნელობის ველი სავალდებულოა!'),
-  change: z.string().optional()
-});
-
-// 1. React Error Boundary (UI-ს დაცვა თეთრი ეკრანისგან)
 class ErrorBoundary extends React.Component {
   state = { hasError: false };
 
@@ -19,7 +10,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary დაიჭირა შეცდომა:", error, errorInfo);
+    console.error("ErrorBoundary error:", error, errorInfo);
   }
 
   render() {
@@ -41,25 +32,16 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// API/სერვისის სიმულაცია DevTools Debugging მეთოდებით (`console.time` და `console.table`)
 const fetchDashboardStats = async () => {
-  debugger;
-  console.time('StatsLoadTime'); // ზომავს ჩატვირთვის სისწრაფეს
-  
   const data = [
     { id: '1', title: 'სულ შეკვეთები', value: '1,284', icon: '📦', change: '+12%' },
     { id: '2', title: 'აქტიური ტრანსპორტი', value: '42', icon: '🚚', change: '+5%' },
     { id: '3', title: 'შემოსავალი', value: '₾45,200', icon: '💰', change: '+18%' },
     { id: '4', title: 'დაყოვნებული', value: '3', icon: '⚠️', change: '-2%' },
   ];
-
-  console.table(data); // აფიქსირებს ცხრილის სახით კონსოლში
-  console.timeEnd('StatsLoadTime'); // აჩვენებს ჩატვირთვის დროს კონსოლში
-  
   return data;
 };
 
-// Custom Hook: Debounce
 const useDebounce = (value, delay = 400) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -74,7 +56,6 @@ const useDebounce = (value, delay = 400) => {
   return debouncedValue;
 };
 
-// მოდალის კომპონენტი Portal-ით
 function Modal({ isOpen, onClose, title, children }) {
   useEffect(() => {
     if (isOpen) {
@@ -103,7 +84,6 @@ function Modal({ isOpen, onClose, title, children }) {
   );
 }
 
-// ფორმის კომპონენტი Zod ვალიდაციით და Double-Click ბლოკირებით
 function ItemForm({ initialData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -111,7 +91,7 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
     change: ''
   });
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false); // Double-click-ის პრევენცია
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -119,30 +99,26 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
     }
   }, [initialData]);
 
-  // Zod-ის ვალიდაციის ლოგიკა
- // Zod-ის ვალიდაციის ლოგიკა
   const validate = () => {
-    const result = itemSchema.safeParse(formData);
-    if (!result.success) {
-      const formattedErrors = {};
-      result.error.issues.forEach(issue => {
-        formattedErrors[issue.path[0]] = issue.message;
-      });
-      setErrors(formattedErrors);
-      return false;
+    const newErrors = {};
+    if (!formData.title || formData.title.length < 3) {
+      newErrors.title = 'დასახელება უნდა იყოს მინიმუმ 3 სიმბოლო!';
     }
-    setErrors({});
-    return true;
+    if (!formData.value) {
+      newErrors.value = 'მნიშვნელობის ველი სავალდებულოა!';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validate()) {
-      setIsSubmitting(true); // ბლოკავს ღილაკს
+      setIsSubmitting(true);
       try {
         await onSubmit(formData);
       } finally {
-        setIsSubmitting(false); // ხსნის ბლოკს
+        setIsSubmitting(false);
       }
     }
   };
@@ -194,7 +170,7 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
 function DashboardApp() {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isOfflineMode, setIsOfflineMode] = useState(false); // ოფლაინ / API Fallback
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 400);
 
@@ -210,7 +186,6 @@ function DashboardApp() {
         setStats(data);
         setIsOfflineMode(false);
       } catch (error) {
-        // API/სერვერის გათიშვისას გადართვა ლოკალურ Fallback რეჟიმზე
         setIsOfflineMode(true);
         setStats([
           { id: '1', title: 'სულ შეკვეთები (ქეში)', value: '1,284', icon: '📦', change: '+12%' },
@@ -258,7 +233,6 @@ function DashboardApp() {
 
   return (
     <div className="app-container">
-      {/* ოფლაინ / Fallback ინდიკატორი */}
       {isOfflineMode && (
         <div style={{ background: '#fef08a', padding: '10px', borderRadius: '6px', marginBottom: '15px', fontWeight: 'bold', color: '#854d0e' }}>
           ⚠️ ნაჩვენებია ლოკალური დემო მონაცემები (სერვერთან კავშირი შეწყვეტილია)
@@ -345,7 +319,6 @@ function DashboardApp() {
   );
 }
 
-// საბოლოო ექსპორტი ErrorBoundary-ით შეფუთული
 export default function App() {
   return (
     <ErrorBoundary>
