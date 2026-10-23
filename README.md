@@ -19,4 +19,4 @@
 
 1. დააკლონეთ რეპოზიტორია:
    ```bash
-   git clone [https://github.com/natatogorozia-pixel/dashboard-app.git](https://github.com/natatogorozia-pixel/dashboard-app.git)
+   git clone https://github.com/natatogorozia-pixel/dashboard-app.git

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import './App.css';
 
@@ -227,9 +227,11 @@ function DashboardApp() {
     setStats(stats.filter(item => item.id !== id));
   };
 
-  const filteredStats = stats.filter((item) =>
-    item.title.toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  const filteredStats = useMemo(() => {
+    return stats.filter((item) =>
+      item.title.toLowerCase().includes(debouncedSearch.toLowerCase())
+    );
+  }, [stats, debouncedSearch]);
 
   return (
     <div className="app-container">
