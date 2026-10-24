@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import ReactDOM from 'react-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useModal } from './hooks/useModal';
 import './App.css';
 
 class ErrorBoundary extends React.Component {
@@ -84,77 +88,40 @@ function Modal({ isOpen, onClose, title, children }) {
   );
 }
 
+// Zod schema for form validation
+const schema = z.object({
+  title: z.string().min(3, 'დასახელება უნდა იყოს მინიმუმ 3 სიმბოლო!'),
+  value: z.string().min(1, 'მნიშვნელობის ველი სავალდებულოა!'),
+  change: z.string().optional()
+});
+
 function ItemForm({ initialData, onSubmit, onCancel }) {
-  const [formData, setFormData] = useState({
-    title: '',
-    value: '',
-    change: ''
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: initialData || { title: '', value: '', change: '' }
   });
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-    }
-  }, [initialData]);
-
-  const validate = () => {
-    const newErrors = {};
-    if (!formData.title || formData.title.length < 3) {
-      newErrors.title = 'დასახელება უნდა იყოს მინიმუმ 3 სიმბოლო!';
-    }
-    if (!formData.value) {
-      newErrors.value = 'მნიშვნელობის ველი სავალდებულოა!';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (validate()) {
-      setIsSubmitting(true);
-      try {
-        await onSubmit(formData);
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
-  };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit(onSubmit)}>
       <div className="form-group">
         <label>მონაცემის დასახელება:</label>
-        <input 
-          type="text" 
-          value={formData.title} 
-          onChange={(e) => setFormData({...formData, title: e.target.value})}
-          placeholder="მაგ: ახალი საწყობი"
-        />
-        {errors.title && <span className="error-text">{errors.title}</span>}
+        <input {...register('title')} placeholder="მაგ: ახალი საწყობი" />
+        {errors.title && <span className="error-text">{errors.title.message}</span>}
       </div>
 
       <div className="form-group">
         <label>მნიშვნელობა:</label>
-        <input 
-          type="text" 
-          value={formData.value} 
-          onChange={(e) => setFormData({...formData, value: e.target.value})}
-          placeholder="მაგ: 150"
-        />
-        {errors.value && <span className="error-text">{errors.value}</span>}
+        <input {...register('value')} placeholder="მაგ: 150" />
+        {errors.value && <span className="error-text">{errors.value.message}</span>}
       </div>
 
       <div className="form-group">
         <label>ცვლილება (მაგ: +10%):</label>
-        <input 
-          type="text" 
-          value={formData.change} 
-          onChange={(e) => setFormData({...formData, change: e.target.value})}
-          placeholder="მაგ: +8%"
-        />
+        <input {...register('change')} placeholder="მაგ: +8%" />
       </div>
 
       <div className="form-actions">
@@ -167,6 +134,27 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
   );
 }
 
+// StatCard memoized with React.memo
+const StatCard = memo(function StatCard({ stat, onEdit, onDelete }) {
+  return (
+    <div className="stat-card">
+      <div>
+        <div style={{ fontSize: '24px' }}>{stat.icon}</div>
+        <h3 style={{ margin: '10px 0 5px 0' }}>{stat.title}</h3>
+        <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '0 0 10px 0' }}>{stat.value}</p>
+        <span style={{ color: stat.change.includes('+') ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
+          {stat.change}
+        </span>
+      </div>
+
+      <div className="card-actions">
+        <button onClick={() => onEdit(stat)} className="edit-btn">Edit</button>
+        <button onClick={() => onDelete(stat.id)} className="delete-btn">Delete</button>
+      </div>
+    </div>
+  );
+});
+
 function DashboardApp() {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -175,8 +163,10 @@ function DashboardApp() {
   const debouncedSearch = useDebounce(searchTerm, 400);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Using useModal custom hook
+  const { isOpen: isModalOpen, openModal, closeModal } = useModal(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -199,15 +189,15 @@ function DashboardApp() {
     loadData();
   }, []);
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = useCallback(() => {
     setEditingItem(null);
-    setIsModalOpen(true);
-  };
+    openModal();
+  }, [openModal]);
 
-  const handleOpenEdit = (stat) => {
+  const handleOpenEdit = useCallback((stat) => {
     setEditingItem(stat);
-    setIsModalOpen(true);
-  };
+    openModal();
+  }, [openModal]);
 
   const handleFormSubmit = (formData) => {
     if (editingItem) {
@@ -220,12 +210,12 @@ function DashboardApp() {
       };
       setStats([...stats, newItem]);
     }
-    setIsModalOpen(false);
+    closeModal();
   };
 
-  const handleDelete = (id) => {
-    setStats(stats.filter(item => item.id !== id));
-  };
+  const handleDelete = useCallback((id) => {
+    setStats(prev => prev.filter(item => item.id !== id));
+  }, []);
 
   const filteredStats = useMemo(() => {
     return stats.filter((item) =>
@@ -283,38 +273,25 @@ function DashboardApp() {
       ) : (
         <div className="stats-grid">
           {filteredStats.map((stat) => (
-            <div key={stat.id} className="stat-card">
-              <div>
-                <div style={{ fontSize: '24px' }}>{stat.icon}</div>
-                <h3 style={{ margin: '10px 0 5px 0' }}>{stat.title}</h3>
-                <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '0 0 10px 0' }}>{stat.value}</p>
-                <span style={{ color: stat.change.includes('+') ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
-                  {stat.change}
-                </span>
-              </div>
-
-              <div className="card-actions">
-                <button onClick={() => handleOpenEdit(stat)} className="edit-btn">
-                  Edit
-                </button>
-                <button onClick={() => handleDelete(stat.id)} className="delete-btn">
-                  Delete
-                </button>
-              </div>
-            </div>
+            <StatCard 
+              key={stat.id} 
+              stat={stat} 
+              onEdit={handleOpenEdit} 
+              onDelete={handleDelete} 
+            />
           ))}
         </div>
       )}
 
       <Modal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={closeModal} 
         title={editingItem ? "მონაცემების რედაქტირება" : "ახალი მონაცემის დამატება"}
       >
         <ItemForm 
           initialData={editingItem} 
           onSubmit={handleFormSubmit} 
-          onCancel={() => setIsModalOpen(false)} 
+          onCancel={closeModal} 
         />
       </Modal>
     </div>
