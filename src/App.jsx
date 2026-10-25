@@ -1,94 +1,13 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import ReactDOM from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useModal } from './hooks/useModal';
+import { useLogisticsStore } from './store/useLogisticsStore'; // Zustand store-ის იმპორტი
 import './App.css';
 
-class ErrorBoundary extends React.Component {
-  state = { hasError: false };
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '50px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-          <h2>⚠️ სისტემური შეცდომა (Runtime Error)</h2>
-          <p>სამწუხაროდ, აპლიკაციის ამ ნაწილში მოხდა შეფერხება.</p>
-          <button 
-            onClick={() => window.location.reload()}
-            style={{ padding: '10px 20px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            სცადეთ ხელახლა (Retry)
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-const fetchDashboardStats = async () => {
-  const data = [
-    { id: '1', title: 'სულ შეკვეთები', value: '1,284', icon: '📦', change: '+12%' },
-    { id: '2', title: 'აქტიური ტრანსპორტი', value: '42', icon: '🚚', change: '+5%' },
-    { id: '3', title: 'შემოსავალი', value: '₾45,200', icon: '💰', change: '+18%' },
-    { id: '4', title: 'დაყოვნებული', value: '3', icon: '⚠️', change: '-2%' },
-  ];
-  return data;
-};
-
-const useDebounce = (value, delay = 400) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-
-  return debouncedValue;
-};
-
-function Modal({ isOpen, onClose, title, children }) {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return ReactDOM.createPortal(
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <button className="close-btn" onClick={onClose}>&times;</button>
-        </div>
-        <div>{children}</div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-// Zod schema for form validation
+// Zod schema
 const schema = z.object({
   title: z.string().min(3, 'დასახელება უნდა იყოს მინიმუმ 3 სიმბოლო!'),
   value: z.string().min(1, 'მნიშვნელობის ველი სავალდებულოა!'),
@@ -96,11 +15,7 @@ const schema = z.object({
 });
 
 function ItemForm({ initialData, onSubmit, onCancel }) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting }
-  } = useForm({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: initialData || { title: '', value: '', change: '' }
   });
@@ -134,7 +49,6 @@ function ItemForm({ initialData, onSubmit, onCancel }) {
   );
 }
 
-// StatCard memoized with React.memo
 const StatCard = memo(function StatCard({ stat, onEdit, onDelete }) {
   return (
     <div className="stat-card">
@@ -142,7 +56,7 @@ const StatCard = memo(function StatCard({ stat, onEdit, onDelete }) {
         <div style={{ fontSize: '24px' }}>{stat.icon}</div>
         <h3 style={{ margin: '10px 0 5px 0' }}>{stat.title}</h3>
         <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '0 0 10px 0' }}>{stat.value}</p>
-        <span style={{ color: stat.change.includes('+') ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
+        <span style={{ color: stat.change?.includes('+') ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
           {stat.change}
         </span>
       </div>
@@ -155,39 +69,29 @@ const StatCard = memo(function StatCard({ stat, onEdit, onDelete }) {
   );
 });
 
-function DashboardApp() {
-  const [stats, setStats] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 400);
+function Modal({ isOpen, onClose, title, children }) {
+  if (!isOpen) return null;
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          <button className="close-btn" onClick={onClose}>&times;</button>
+        </div>
+        <div>{children}</div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+export default function DashboardApp() {
+  // Zustand store-დან გამოგვაქვს მონაცემები და მეთოდები
+  const { stats, searchTerm, setSearchTerm, addStat, editStat, deleteStat } = useLogisticsStore();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-
-  // Using useModal custom hook
   const { isOpen: isModalOpen, openModal, closeModal } = useModal(false);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchDashboardStats();
-        setStats(data);
-        setIsOfflineMode(false);
-      } catch (error) {
-        setIsOfflineMode(true);
-        setStats([
-          { id: '1', title: 'სულ შეკვეთები (ქეში)', value: '1,284', icon: '📦', change: '+12%' },
-          { id: '2', title: 'აქტიური ტრანსპორტი (ქეში)', value: '42', icon: '🚚', change: '+5%' }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
 
   const handleOpenAdd = useCallback(() => {
     setEditingItem(null);
@@ -201,59 +105,39 @@ function DashboardApp() {
 
   const handleFormSubmit = (formData) => {
     if (editingItem) {
-      setStats(stats.map(item => item.id === editingItem.id ? { ...item, ...formData } : item));
+      editStat(editingItem.id, formData);
     } else {
-      const newItem = {
-        id: Date.now().toString(),
-        icon: '📊',
-        ...formData
-      };
-      setStats([...stats, newItem]);
+      addStat(formData);
     }
     closeModal();
   };
 
   const handleDelete = useCallback((id) => {
-    setStats(prev => prev.filter(item => item.id !== id));
-  }, []);
+    deleteStat(id);
+  }, [deleteStat]);
 
+  // ფილტრაცია და ძებნა
   const filteredStats = useMemo(() => {
     return stats.filter((item) =>
-      item.title.toLowerCase().includes(debouncedSearch.toLowerCase())
+      item.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [stats, debouncedSearch]);
+  }, [stats, searchTerm]);
 
   return (
     <div className="app-container">
-      {isOfflineMode && (
-        <div style={{ background: '#fef08a', padding: '10px', borderRadius: '6px', marginBottom: '15px', fontWeight: 'bold', color: '#854d0e' }}>
-          ⚠️ ნაჩვენებია ლოკალური დემო მონაცემები (სერვერთან კავშირი შეწყვეტილია)
-        </div>
-      )}
-
       <header className="app-header">
         <h1>B2B ლოჯისტიკის დეშბორდი</h1>
         
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="hamburger-btn"
-          aria-label="მენიუ"
-        >
-          ☰
-        </button>
-
         <div className={`nav-links ${isMobileMenuOpen ? 'open' : ''}`}>
-          <button 
-            onClick={() => { handleOpenAdd(); setIsMobileMenuOpen(false); }}
-            className="add-new-btn"
-          >
+          <button onClick={handleOpenAdd} className="add-new-btn">
             + Add New
           </button>
           
           <div className="pulse-wrapper">
             <span className="pulse-dot"></span>
+            {/* Header-ში ავტომატურად აისახება სთეითის რაოდენობა */}
             <span className="pulse-text">
-              დაყოვნებული ტვირთები (3)
+              სულ ელემენტი: ({stats.length})
             </span>
           </div>
         </div>
@@ -265,23 +149,18 @@ function DashboardApp() {
         placeholder="ძებნა ტვირთის დასახელებით..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        aria-label="ძებნა"
       />
 
-      {loading ? (
-        <p>იტვირთება...</p>
-      ) : (
-        <div className="stats-grid">
-          {filteredStats.map((stat) => (
-            <StatCard 
-              key={stat.id} 
-              stat={stat} 
-              onEdit={handleOpenEdit} 
-              onDelete={handleDelete} 
-            />
-          ))}
-        </div>
-      )}
+      <div className="stats-grid">
+        {filteredStats.map((stat) => (
+          <StatCard 
+            key={stat.id} 
+            stat={stat} 
+            onEdit={handleOpenEdit} 
+            onDelete={handleDelete} 
+          />
+        ))}
+      </div>
 
       <Modal 
         isOpen={isModalOpen} 
@@ -295,13 +174,5 @@ function DashboardApp() {
         />
       </Modal>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <ErrorBoundary>
-      <DashboardApp />
-    </ErrorBoundary>
   );
 }
